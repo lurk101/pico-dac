@@ -9,6 +9,11 @@ project(pdm C CXX ASM)
 
 pico_sdk_init()
 
+add_compile_options("-DSYS_CLK_KHZ=96000")
+add_compile_options("-DPLL_SYS_VCO_FREQ_KHZ=768000")
+add_compile_options("-DPLL_SYS_POSTDIV1=4")
+add_compile_options("-DPLL_SYS_POSTDIV2=2")
+
 add_executable(pdm main.c)
 
 pico_set_program_name(pdm "pdm")
