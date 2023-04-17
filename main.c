@@ -11,38 +11,40 @@
 
 static const uint32_t PDM_LEFT_GPIO = 14;
 static const uint32_t PDM_RIGHT_GPIO = 15;
+static const uint32_t PDM_SM_CLK_DIV = 90;
 
 int main() {
-    // set system clock to 96 MHz, this will give
-    // divided by 34 gives 2.823529 MHz for I2S clk (44100 * 16 * 2 * 2 = 2,822,400)
-    // and divided by 68 gives 1.411764 MHz PCM clk (44100 * 32 = 1,411,200)
+    // set system clock to 127 MHz, this will give
+    // divided by 90 gives 1.4111111 MHz PCM clk (44100 * 32 = 1,411,200)
     stdio_init_all();
     getchar_timeout_us(250000);
     // clear the screen on VT terminal
     printf("\033[H\033[JPico I2S PDM Stereo DAC\n");
-    printf("System clock %f MHz\n", clock_get_hz(clk_sys) / 1.0e6);
+    uint32_t sys_clk = clock_get_hz(clk_sys);
+    printf("System clock %f MHz\n", sys_clk / 1.0e6);
 
     printf("Starting PCM TX\n");
     pdm_data pdm_l, pdm_r;
-    pdm_begin(&pdm_l, &pdm_r, PDM_LEFT_GPIO, PDM_RIGHT_GPIO);
+    pdm_begin(&pdm_l, &pdm_r, PDM_LEFT_GPIO, PDM_RIGHT_GPIO, PDM_SM_CLK_DIV);
     uint32_t t = time_us_32();
     for (int i = 0; i < 44100; i++) {
-        multicore_fifo_push_blocking(15);
-        uint32_t r = pdm_o4_os32_df2(&pdm_r, 14);
+        multicore_fifo_push_blocking(0);
+        uint32_t r = pdm_o4_os32_df2(&pdm_r, 0);
         uint32_t l = multicore_fifo_pop_blocking();
         while (pio_sm_is_tx_fifo_full(pio, pdm_r.sm))
             ;
-        pio->txf[pdm_r.sm] = r;
+        pio->txf[pdm_r.sm] = r << 16;
         while (pio_sm_is_tx_fifo_full(pio, pdm_l.sm))
             ;
-        pio->txf[pdm_l.sm] = l;
+        pio->txf[pdm_l.sm] = l << 16;
     }
     while (!pio_sm_is_tx_fifo_empty(pio, pdm_l.sm))
         ;
     while (!pio_sm_is_tx_fifo_empty(pio, pdm_r.sm))
         ;
     t = time_us_32() - t;
-    printf("PCM sync test, error %.3f%%\n", (1000000 - t) / 10000.0);
+    printf("PCM sync test, error %.3f%%\n", (t - 1000000) / 10000.0);
+    printf("Ideal PCM freq. %d Hz, actual %d Hz\n", 44100 * 32, sys_clk / PDM_SM_CLK_DIV);
 
     printf("Starting I2S RX\n");
 }
