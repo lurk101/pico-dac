@@ -14,7 +14,7 @@ add_compile_options("-DPLL_SYS_VCO_FREQ_KHZ=768000")
 add_compile_options("-DPLL_SYS_POSTDIV1=4")
 add_compile_options("-DPLL_SYS_POSTDIV2=2")
 
-add_executable(pdm main.c pdmAudio.c pdmAudio.h)
+add_executable(pdm main.c pdm.c pdm.h)
 
 pico_set_program_name(pdm "pdm")
 pico_set_program_version(pdm "0.0")
@@ -22,7 +22,9 @@ pico_set_program_version(pdm "0.0")
 pico_enable_stdio_uart(pdm 1)
 pico_enable_stdio_usb(pdm 0)
 
-target_link_libraries(pdm pico_stdlib pico_multicore hardware_clocks hardware_pio hardware_gpio)
+target_link_libraries(pdm
+    pico_stdlib pico_multicore
+    hardware_clocks hardware_pio hardware_gpio)
 
 pico_add_extra_outputs(pdm)
 
