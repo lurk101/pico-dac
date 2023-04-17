@@ -14,7 +14,9 @@ add_compile_options("-DPLL_SYS_VCO_FREQ_KHZ=768000")
 add_compile_options("-DPLL_SYS_POSTDIV1=4")
 add_compile_options("-DPLL_SYS_POSTDIV2=2")
 
-add_executable(pdm main.c pdm.c pdm.h)
+add_executable(pdm main.c pdm.c pdm.h pdm.pio)
+
+pico_generate_pio_header(pdm ${CMAKE_CURRENT_LIST_DIR}/pdm.pio)
 
 pico_set_program_name(pdm "pdm")
 pico_set_program_version(pdm "0.0")
