@@ -7,11 +7,26 @@
 //
 #include <hardware/clocks.h>
 //
+#include "i2s.h"
 #include "pdm.h"
 
 static const uint32_t PDM_LEFT_GPIO = 14;
 static const uint32_t PDM_RIGHT_GPIO = 15;
 static const uint32_t PDM_SM_CLK_DIV = 90;
+static const uint32_t I2S_CLK = 26;
+static const uint32_t I2S_LR_CLK = 18;
+static const uint32_t I2S_DATA = 17;
+
+static int handle_stalled(pdm_data* pdm) {
+    uint32_t mask = (1 << PIO_FDEBUG_TXSTALL_LSB) << pdm->sm;
+    if (pio->fdebug & mask) {
+        pio->fdebug = mask;
+        pio->txf[pdm->sm] = pdm->last;
+        pdm->idles++;
+        if (++pdm->idles > 1) return 1;
+    }
+    return 0;
+}
 
 int main() {
     // set system clock to 127 MHz, this will give
@@ -29,14 +44,14 @@ int main() {
     uint32_t t = time_us_32();
     for (int i = 0; i < 44100; i++) {
         multicore_fifo_push_blocking(0);
-        uint32_t r = pdm_o4_os32_df2(&pdm_r, 0);
-        uint32_t l = multicore_fifo_pop_blocking();
+        pdm_r.last = pdm_o4_os32_df2(&pdm_r, 0);
+        pdm_l.last = multicore_fifo_pop_blocking();
         while (pio_sm_is_tx_fifo_full(pio, pdm_r.sm))
             ;
-        pio->txf[pdm_r.sm] = r << 16;
+        pio->txf[pdm_r.sm] = pdm_r.last;
         while (pio_sm_is_tx_fifo_full(pio, pdm_l.sm))
             ;
-        pio->txf[pdm_l.sm] = l << 16;
+        pio->txf[pdm_l.sm] = pdm_l.last;
     }
     while (!pio_sm_is_tx_fifo_empty(pio, pdm_l.sm))
         ;
@@ -48,4 +63,25 @@ int main() {
     printf("- Ideal PCM freq. %d Hz, actual %d Hz\n", 44100 * 32, sys_clk / PDM_SM_CLK_DIV);
 
     printf("Starting I2S RX\n");
+    i2s_begin(I2S_CLK, I2S_LR_CLK, I2S_DATA);
+    pio->fdebug = (1 << PIO_FDEBUG_TXSTALL_LSB) << pdm_r.sm;
+    pio->fdebug = (1 << PIO_FDEBUG_TXSTALL_LSB) << pdm_l.sm;
+    printf("Ready\n");
+    for (;;) {
+        if (handle_stalled(&pdm_r) || handle_stalled(&pdm_l)) {
+            pdm_pause(&pdm_l, &pdm_r);
+            while (i2s_ready()) i2s_read();
+            continue;
+        }
+        if (i2s_ready()) {
+            uint32_t stereo = i2s_read();
+            multicore_fifo_push_blocking(stereo >> 16);
+            pdm_r.last = pdm_o4_os32_df2(&pdm_r, stereo);
+            pdm_l.last = multicore_fifo_pop_blocking();
+            pdm_r.idles = 0;
+            pdm_l.idles = 0;
+            if (!pio_sm_is_tx_fifo_full(pio, pdm_r.sm)) pio->txf[pdm_r.sm] = pdm_r.last;
+            if (!pio_sm_is_tx_fifo_full(pio, pdm_l.sm)) pio->txf[pdm_l.sm] = pdm_l.last;
+        }
+    }
 }

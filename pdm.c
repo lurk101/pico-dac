@@ -39,10 +39,32 @@ uint32_t pdm_o4_os32_df2(pdm_data* pdm, int16_t signal) {
 static void de_pop(pdm_data* pdm) {
     // startup pop suppression
     for (int i = -32767; i <= 0; i++) {
-        uint32_t a = pdm_o4_os32_df2(pdm, i);
+        pdm->last = pdm_o4_os32_df2(pdm, i);
         while (pio_sm_is_tx_fifo_full(pio, pdm->sm))
             ;
-        pio->txf[pdm->sm] = a;
+        pio->txf[pdm->sm] = pdm->last;
+    }
+    pdm->signal = 0;
+}
+
+void pdm_pause(pdm_data* pdm_l, pdm_data* pdm_r) {
+    while (pdm_l->signal || pdm_r->signal) {
+        if (pdm_l->signal > 0)
+            --pdm_l->signal;
+        else if (pdm_l->signal < 0)
+            ++pdm_l->signal;
+        if (pdm_r->signal > 0)
+            --pdm_r->signal;
+        else if (pdm_r->signal < 0)
+            ++pdm_r->signal;
+        pdm_l->last = pdm_o4_os32_df2(pdm_l, pdm_l->signal);
+        while (pio_sm_is_tx_fifo_full(pio, pdm_l->sm))
+            ;
+        pio->txf[pdm_l->sm] = pdm_l->last;
+        pdm_r->last = pdm_o4_os32_df2(pdm_r, pdm_r->signal);
+        while (pio_sm_is_tx_fifo_full(pio, pdm_r->sm))
+            ;
+        pio->txf[pdm_r->sm] = pdm_r->last;
     }
 }
 
@@ -50,7 +72,9 @@ static void core1_worker() {
     pdm_data* pdm_left = (pdm_data*)multicore_fifo_pop_blocking();
     de_pop(pdm_left);
     multicore_fifo_push_blocking(0);
-    for (;;) multicore_fifo_push_blocking(pdm_o4_os32_df2(pdm_left, multicore_fifo_pop_blocking()));
+    for (;;)
+        multicore_fifo_push_blocking(pdm_left->last =
+                                         pdm_o4_os32_df2(pdm_left, multicore_fifo_pop_blocking()));
 }
 
 void config_sm(pdm_data* pdm, uint32_t pin, uint32_t offset, uint32_t clk_div) {
