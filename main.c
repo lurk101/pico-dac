@@ -43,8 +43,9 @@ int main() {
     while (!pio_sm_is_tx_fifo_empty(pio, pdm_r.sm))
         ;
     t = time_us_32() - t;
-    printf("PCM sync test, error %.3f%%\n", (t - 1000000) / 10000.0);
-    printf("Ideal PCM freq. %d Hz, actual %d Hz\n", 44100 * 32, sys_clk / PDM_SM_CLK_DIV);
+    printf("- PCM sync test, elapsed %f seconds, error %.3f%%\n", t / 1000000.0,
+           (t - 1000000) / 10000.0);
+    printf("- Ideal PCM freq. %d Hz, actual %d Hz\n", 44100 * 32, sys_clk / PDM_SM_CLK_DIV);
 
     printf("Starting I2S RX\n");
 }
