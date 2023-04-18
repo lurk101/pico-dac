@@ -14,9 +14,10 @@ add_compile_options("-DPLL_SYS_VCO_FREQ_KHZ=1524000")
 add_compile_options("-DPLL_SYS_POSTDIV1=6")
 add_compile_options("-DPLL_SYS_POSTDIV2=2")
 
-add_executable(dac main.c i2s.c i2s.h pdm.c pdm.h pdm.pio)
+add_subdirectory(libpdm)
+add_subdirectory(libi2s)
 
-pico_generate_pio_header(dac ${CMAKE_CURRENT_LIST_DIR}/pdm.pio)
+add_executable(dac main.c)
 
 pico_set_program_name(dac "dac")
 pico_set_program_version(dac "0.0")
@@ -25,6 +26,7 @@ pico_enable_stdio_uart(dac 1)
 pico_enable_stdio_usb(dac 0)
 
 target_link_libraries(dac
+    libpdm libi2s
     pico_stdlib pico_multicore
     hardware_clocks hardware_pio hardware_gpio)
 
