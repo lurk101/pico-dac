@@ -1,7 +1,4 @@
 .program pdm
 
-; An 8n1 UART transmit program.
-; OUT pin 0 and side-set pin 0 are both mapped to UART TX pin.
-
     out pins, 1
 

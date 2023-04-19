@@ -13,9 +13,9 @@
 static const uint32_t PDM_LEFT_GPIO = 14;
 static const uint32_t PDM_RIGHT_GPIO = 15;
 static const uint32_t PDM_SM_CLK_DIV = 90;
-static const uint32_t I2S_CLK = 26;
-static const uint32_t I2S_LR_CLK = 18;
 static const uint32_t I2S_DATA = 17;
+static const uint32_t I2S_LR_CLK = 18;
+static const uint32_t I2S_CLK = 26;
 
 static int handle_stalled(pdm_data* pdm) {
     uint32_t mask = (1 << PIO_FDEBUG_TXSTALL_LSB) << pdm->sm;
@@ -48,10 +48,10 @@ int main() {
         pdm_l.last = multicore_fifo_pop_blocking();
         while (pio_sm_is_tx_fifo_full(pio, pdm_r.sm))
             ;
-        pio->txf[pdm_r.sm] = pdm_r.last;
+        pio_sm_put(pio, pdm_r.sm, pdm_r.last);
         while (pio_sm_is_tx_fifo_full(pio, pdm_l.sm))
             ;
-        pio->txf[pdm_l.sm] = pdm_l.last;
+        pio_sm_put(pio, pdm_l.sm, pdm_l.last);
     }
     while (!pio_sm_is_tx_fifo_empty(pio, pdm_l.sm))
         ;
@@ -78,10 +78,9 @@ int main() {
             multicore_fifo_push_blocking(stereo >> 16);
             pdm_r.last = pdm_o4_os32_df2(&pdm_r, stereo);
             pdm_l.last = multicore_fifo_pop_blocking();
-            pdm_r.idles = 0;
-            pdm_l.idles = 0;
-            if (!pio_sm_is_tx_fifo_full(pio, pdm_r.sm)) pio->txf[pdm_r.sm] = pdm_r.last;
-            if (!pio_sm_is_tx_fifo_full(pio, pdm_l.sm)) pio->txf[pdm_l.sm] = pdm_l.last;
+            pdm_r.idles = pdm_l.idles = 0;
+            if (!pio_sm_is_tx_fifo_full(pio, pdm_r.sm)) pio_sm_put(pio, pdm_r.sm, pdm_r.last);
+            if (!pio_sm_is_tx_fifo_full(pio, pdm_l.sm)) pio_sm_put(pio, pdm_l.sm, pdm_l.last);
         }
     }
 }

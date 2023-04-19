@@ -1,7 +1,19 @@
 .program i2s
 
-; An 8n1 UART transmit program.
-; OUT pin 0 and side-set pin 0 are both mapped to UART TX pin.
+.define public DATA 17
+.define public LRCLK 18
+.define public CLK 26
 
-    out pins, 1
+	wait 1 gpio LRCLK
+	wait 0 gpio LRCLK
+
+	wait 0 gpio CLK
+	wait 1 gpio CLK
+	wait 0 gpio CLK
+
+.wrap_target
+
+	wait 1 gpio CLK
+    in   pins, 1
+	wait 0 gpio CLK
 
