@@ -5,9 +5,6 @@
 typedef struct {
     int32_t w[4];
     uint32_t sm;
-    uint32_t last;
-    uint16_t signal;
-    uint16_t idles;
 } pdm_data;
 
 static const PIO pio = pio0;
